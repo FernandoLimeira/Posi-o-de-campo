@@ -1,0 +1,7 @@
+APÓS A ATUALIZAÇÃO, REMOVA ESTES ARQUIVOS ANTIGOS SE AINDA EXISTIREM NA SUA CÓPIA:
+
+register.html
+js/register.js
+
+Eles pertenciam ao cadastro público, que foi desativado.
+O backend já bloqueia /register e /api/auth/register mesmo que esses arquivos antigos permaneçam por engano.

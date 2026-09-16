@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b7a36" />
+  <title>Cadastro · Posição de Campo</title>
+  <link rel="stylesheet" href="css/auth.css?v=20260916-auth-v1" />
+</head>
+<body>
+  <main class="auth-page">
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-brand">
+        <span class="auth-brand-mark">COCAL</span>
+        <span>POSIÇÃO DE CAMPO</span>
+      </div>
+
+      <div class="auth-heading">
+        <p>NOVO ACESSO</p>
+        <h1 id="auth-title">Cadastrar usuário</h1>
+        <span>Cadastro simples com nome e senha. Não há regra de complexidade para a senha.</span>
+      </div>
+
+      <form id="register-form" class="auth-form" autocomplete="on">
+        <label>
+          <span>Nome</span>
+          <input id="name" name="name" type="text" autocomplete="username" required autofocus />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input id="password" name="password" type="password" autocomplete="new-password" required />
+        </label>
+        <p class="auth-help">A senha só precisa estar preenchida.</p>
+        <p id="auth-error" class="auth-error" role="alert" hidden></p>
+        <button id="submit-button" type="submit">Cadastrar e entrar</button>
+      </form>
+
+      <p class="auth-switch">Já possui cadastro? <a href="/login">Voltar para o login</a></p>
+    </section>
+
+    <aside class="auth-visual" aria-hidden="true">
+      <div>
+        <p>ACESSO COMPARTILHADO</p>
+        <h2>Uma conta, <span>todas as unidades</span></h2>
+        <small>O cadastro não limita unidades: PPT, NRD, RBR e PST ficam disponíveis para todos os usuários.</small>
+      </div>
+    </aside>
+  </main>
+  <script src="js/register.js?v=20260916-auth-v1"></script>
+</body>
+</html>

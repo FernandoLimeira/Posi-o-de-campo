@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b7a36" />
+  <title>Entrar · Posição de Campo</title>
+  <link rel="stylesheet" href="css/auth.css?v=20260916-admin-v1" />
+</head>
+<body>
+  <main class="auth-page">
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-brand">
+        <span class="auth-brand-mark">COCAL</span>
+        <span>POSIÇÃO DE CAMPO</span>
+      </div>
+
+      <div class="auth-heading">
+        <p>ACESSO AO PAINEL</p>
+        <h1 id="auth-title">Entrar</h1>
+        <span>Use seu nome e senha para acessar o preenchimento das unidades.</span>
+      </div>
+
+      <form id="login-form" class="auth-form" autocomplete="on">
+        <label>
+          <span>Nome</span>
+          <input id="name" name="name" type="text" autocomplete="username" required autofocus />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <p id="auth-error" class="auth-error" role="alert" hidden></p>
+        <button id="submit-button" type="submit">Entrar</button>
+      </form>
+
+      <p class="auth-switch">Precisa de acesso? Solicite sua conta ao Administrador.</p>
+    </section>
+
+    <aside class="auth-visual" aria-hidden="true">
+      <div>
+        <p>CONTROLE OPERACIONAL</p>
+        <h2>Posição de campo <span>atualizada</span></h2>
+        <small>As contas são criadas pelo Administrador. Usuários autorizados acessam PPT, NRD, RBR e PST.</small>
+      </div>
+    </aside>
+  </main>
+  <script src="js/login.js?v=20260916-admin-v1"></script>
+</body>
+</html>

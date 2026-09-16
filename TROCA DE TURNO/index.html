@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b7a36" />
+  <title>Posição de Campo</title>
+  <link rel="stylesheet" href="css/style.css?v=20260916-admin-v1" />
+</head>
+<body>
+  <main id="dashboard" class="dashboard-shell">
+    <nav class="app-navbar" aria-label="Navegação principal">
+      <div class="nav-brand">
+        <strong>COCAL</strong>
+        <span>POSIÇÃO DE CAMPO</span>
+      </div>
+
+      <div class="nav-date">
+        <strong id="greeting">BOA TARDE!</strong>
+        <span id="today">15/09/2026 - TC</span>
+      </div>
+
+      <div class="nav-unit-selector" aria-label="Seleção de unidade">
+        <span class="nav-unit-selector-label">Unidade</span>
+        <div id="unit-selector" class="unit-selector" role="tablist" aria-label="Selecionar unidade"></div>
+      </div>
+
+      <div class="nav-actions">
+        <button id="open-data-modal" class="nav-link" type="button">Preencher</button>
+        <button id="save-jpg" class="nav-link" type="button">Gerar mensagem JPG</button>
+        <button id="open-history" class="nav-link" type="button">Histórico</button>
+        <button id="open-users" class="nav-link" type="button" hidden>Usuários</button>
+        <div class="nav-user" aria-label="Usuário conectado">
+          <span id="current-user">Usuário</span>
+          <button id="logout-button" class="nav-logout" type="button">Sair</button>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="hero-content">
+        <p class="eyebrow">CONTROLE OPERACIONAL</p>
+        <h1>Posição de campo <span>atualizada</span></h1>
+        <p class="hero-subtitle">Segurança e qualidade em nossas operações.</p>
+
+        <div class="legend" aria-label="Legenda de status">
+          <div><i class="dot green"></i> Em atividade</div>
+          <div><i class="dot yellow"></i> Solo úmido ou mudança</div>
+          <div><i class="dot red"></i> Todas as frentes em solo úmido</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard-preview-heading">
+      <div>
+        <p>VISUALIZAÇÃO</p>
+        <h2>Painel consolidado</h2>
+      </div>
+      <span id="preview-unit-label">Exibindo a unidade selecionada</span>
+    </section>
+
+    <section id="units-grid" class="units-grid" aria-live="polite"></section>
+
+    <footer class="footer">
+      <span>COA · COCAL · SAFRA 2026</span>
+      <strong>Segurança · Qualidade · Pessoas · Resultados</strong>
+    </footer>
+  </main>
+
+  <!-- Layout exclusivo para impressão/PDF. No navegador ele permanece oculto. -->
+  <div id="data-modal" class="modal-backdrop" hidden>
+    <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="data-modal-title">
+      <header class="modal-header">
+        <div>
+          <span class="modal-kicker">Atualização operacional</span>
+          <h2 id="data-modal-title">Preencher informações</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-modal="data-modal" aria-label="Fechar">×</button>
+      </header>
+
+      <form id="operation-form" class="operation-form">
+        <div class="form-toolbar">
+          <input id="unit-select" name="unit" type="hidden" value="0" />
+
+          <div class="editor-unit-summary">
+            <span>Unidade selecionada</span>
+            <strong id="form-unit-name">PPT — PARAGUAÇU PAULISTA</strong>
+          </div>
+
+        </div>
+
+        <nav class="form-stepper" aria-label="Etapas do preenchimento">
+          <div class="form-step is-active" data-step-indicator="0" aria-current="step">
+            <span class="form-step-number">1</span>
+            <span class="form-step-copy"><strong>Campo</strong><small>Frentes e status</small></span>
+          </div>
+          <div class="form-step" data-step-indicator="1">
+            <span class="form-step-number">2</span>
+            <span class="form-step-copy"><strong>Produção</strong><small>Indicadores</small></span>
+          </div>
+          <div class="form-step" data-step-indicator="2">
+            <span class="form-step-number">3</span>
+            <span class="form-step-copy"><strong>Apontamentos</strong><small>Observação e mudanças</small></span>
+          </div>
+          <div class="form-step" data-step-indicator="3">
+            <span class="form-step-number">4</span>
+            <span class="form-step-copy"><strong>Precipitação</strong><small>Chuva e acumulado</small></span>
+          </div>
+        </nav>
+
+        <div class="form-content form-wizard-content">
+          <section class="form-section form-section-wide form-step-panel is-active" data-step-panel="0">
+            <div class="section-heading">
+              <div>
+                <span>Etapa 1 de 4 · Campo</span>
+                <h3>Frentes, setores e status</h3>
+              </div>
+              <button id="add-front-row" class="section-action" type="button">Adicionar frente</button>
+            </div>
+
+            <div class="editable-table-wrap">
+              <table class="editable-table">
+                <thead>
+                  <tr>
+                    <th>Frente</th>
+                    <th>Setor</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="front-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="form-section form-section-wide form-step-panel" data-step-panel="1" hidden>
+            <div class="section-heading">
+              <div>
+                <span>Etapa 2 de 4 · Produção</span>
+                <h3>Indicadores do turno</h3>
+              </div>
+            </div>
+            <div id="metrics-form" class="metrics-form metrics-form-wizard"></div>
+          </section>
+
+          <section class="form-section form-section-wide form-step-panel" data-step-panel="2" hidden>
+            <div class="section-heading">
+              <div>
+                <span>Etapa 3 de 4 · Apontamentos e Mudanças</span>
+                <h3>Registre as informações operacionais</h3>
+              </div>
+            </div>
+
+            <div class="notes-form-grid">
+              <label class="field">
+                <span>Observação</span>
+                <textarea id="observation-input" rows="7" placeholder="Digite a observação do turno"></textarea>
+              </label>
+
+              <label class="field">
+                <span>Mudanças</span>
+                <textarea id="changes-input" rows="7" placeholder="Digite mudanças previstas ou realizadas"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section form-section-wide form-step-panel" data-step-panel="3" hidden>
+            <div class="section-heading">
+              <div>
+                <span>Etapa 4 de 4 · Precipitação</span>
+                <h3>Chuva turno / acumulado (mm)</h3>
+              </div>
+              <button id="add-rain-row" class="section-action" type="button">Adicionar equipamento</button>
+            </div>
+            <div id="rain-form" class="rain-form"></div>
+          </section>
+        </div>
+
+        <footer class="modal-footer wizard-footer">
+          <div class="wizard-footer-info">
+            <strong id="wizard-step-label">Etapa 1 de 4 · Campo</strong>
+            <p>Os dados ficam salvos no servidor.</p>
+          </div>
+          <div class="modal-footer-actions wizard-actions">
+            <button class="modal-button secondary" type="button" data-close-modal="data-modal">Cancelar</button>
+            <button id="wizard-prev" class="modal-button secondary" type="button" hidden>Voltar</button>
+            <button id="wizard-next" class="modal-button save" type="button">Avançar</button>
+            <button id="wizard-save" class="modal-button save" type="submit" hidden>Salvar no painel</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <div id="history-modal" class="modal-backdrop" hidden>
+    <section class="editor-modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+      <header class="modal-header">
+        <div>
+          <span class="modal-kicker">Rastreabilidade</span>
+          <h2 id="history-modal-title">Histórico de alterações</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-modal="history-modal" aria-label="Fechar">×</button>
+      </header>
+      <div class="history-toolbar">
+        <label class="field history-filter">
+          <span>Unidade</span>
+          <select id="history-unit-filter">
+            <option value="">Todas as unidades</option>
+            <option value="PPT">PPT</option>
+            <option value="NRD">NRD</option>
+            <option value="RBR">RBR</option>
+            <option value="PST">PST</option>
+          </select>
+        </label>
+        <button id="create-backup" class="modal-button secondary" type="button" hidden>Criar backup agora</button>
+      </div>
+      <div class="history-content">
+        <div id="history-list" class="history-list" aria-live="polite"></div>
+      </div>
+      <footer class="modal-footer">
+        <div class="wizard-footer-info">
+          <strong>Registro automático</strong>
+          <p>Cada salvamento registra usuário, unidade e horário.</p>
+        </div>
+        <div class="modal-footer-actions">
+          <button class="modal-button secondary" type="button" data-close-modal="history-modal">Fechar</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+
+  <div id="users-modal" class="modal-backdrop" hidden>
+    <section class="editor-modal users-modal" role="dialog" aria-modal="true" aria-labelledby="users-modal-title">
+      <header class="modal-header">
+        <div>
+          <span class="modal-kicker">Acessos</span>
+          <h2 id="users-modal-title">Gestão de usuários</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-modal="users-modal" aria-label="Fechar">×</button>
+      </header>
+      <div class="users-content">
+        <form id="quick-user-form" class="quick-user-form">
+          <label class="field">
+            <span>Nome</span>
+            <input id="quick-user-name" type="text" autocomplete="off" required placeholder="Nome do usuário" />
+          </label>
+          <label class="field">
+            <span>Senha</span>
+            <input id="quick-user-password" type="password" required placeholder="Senha" />
+          </label>
+          <button class="modal-button save" type="submit">Criar conta</button>
+        </form>
+        <div id="users-list" class="users-list" aria-live="polite"></div>
+      </div>
+      <footer class="modal-footer">
+        <div class="wizard-footer-info">
+          <strong>Controle do Administrador</strong>
+          <p>Somente o Administrador cria e gerencia contas. Usuários comuns acessam todas as unidades.</p>
+        </div>
+        <div class="modal-footer-actions">
+          <button class="modal-button secondary" type="button" data-close-modal="users-modal">Fechar</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/app.js?v=20260916-admin-v1"></script>
+</body>
+</html>

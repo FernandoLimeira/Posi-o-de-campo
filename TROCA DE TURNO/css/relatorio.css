@@ -1,0 +1,705 @@
+* { box-sizing: border-box; }
+
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+html, body { margin: 0; min-width: 320px; min-height: 100%; }
+body {
+  padding: 74px 18px 28px;
+  background: #e8eeeb;
+  color: #fff;
+}
+
+.report-toolbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 100;
+  min-height: 56px;
+  padding: 9px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #0b7a36;
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(0,0,0,.16);
+}
+.report-toolbar-copy { min-width: 0; flex: 1; max-width: 760px; }
+.report-toolbar-copy strong { display: block; font-size: 14px; }
+.report-toolbar-copy span { display: block; margin-top: 2px; font-size: 11px; opacity: .84; }
+.report-toolbar-actions { display: flex; align-items: center; gap: 16px; }
+.report-toolbar button {
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.report-toolbar button:hover { border-bottom-color: rgba(255,255,255,.9); }
+.report-stage { width: 100%; display: flex; justify-content: center; }
+#print-report.print-report {
+  box-shadow: 0 18px 60px rgba(16,48,31,.2);
+}
+.report-message {
+  width: min(620px, calc(100vw - 32px));
+  margin: 80px auto;
+  padding: 26px;
+  border-radius: 12px;
+  background: #fff;
+  color: #183126;
+  box-shadow: 0 12px 36px rgba(0,0,0,.12);
+}
+.report-message h1 { margin: 0 0 8px; font-size: 20px; }
+.report-message p { margin: 0; color: #65766d; line-height: 1.5; }
+.report-message[hidden] { display: none; }
+
+#print-report.print-report {
+    position: relative;
+    width: 190mm;
+    height: 300mm;
+    margin: 0;
+    display: grid;
+    grid-template-rows: 12.5mm 37.5mm 220mm 30mm;
+    overflow: hidden;
+    color: #fff;
+    background:
+      radial-gradient(circle at 18% 15%, rgba(10, 104, 103, .28), transparent 35%),
+      linear-gradient(180deg, #073f45 0%, #04363b 54%, #063e43 100%);
+    font-family: "Arial Narrow", "Segoe UI", Arial, sans-serif;
+  }
+
+  .print-topbar {
+    min-height: 0;
+    padding: 0 5.2mm;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5mm;
+    background: linear-gradient(90deg, #04353b, #0b5057 60%, #06383e);
+    border-bottom: .8mm solid #75e62f;
+  }
+
+  .print-greeting {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 2.4mm;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .print-calendar {
+    width: 7mm;
+    height: 7mm;
+    display: grid;
+    place-items: center;
+    color: #79ed37;
+    border: .55mm solid #79ed37;
+    border-radius: .8mm;
+    font-size: 4.2mm;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .print-greeting strong {
+    font-size: 6.2mm;
+    line-height: 1;
+    letter-spacing: .12mm;
+    font-weight: 900;
+  }
+
+  .print-greeting .print-separator {
+    width: .35mm;
+    height: 7mm;
+    background: #f2d65f;
+    opacity: .95;
+  }
+
+  .print-greeting .print-date {
+    font-size: 5.5mm;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: .08mm;
+  }
+
+  .print-cocal {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    font-size: 8.2mm;
+    font-weight: 900;
+    letter-spacing: -.25mm;
+    text-transform: lowercase;
+  }
+
+  .print-cocal-mark {
+    position: relative;
+    width: 10.2mm;
+    height: 9mm;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 2mm;
+    background: linear-gradient(135deg, #87e535, #3dbb31);
+  }
+
+  .print-cocal-mark::after {
+    content: "";
+    position: absolute;
+    width: 6.8mm;
+    height: 6.8mm;
+    top: -.9mm;
+    left: -.8mm;
+    border-radius: 50%;
+    background: #f6fff3;
+    box-shadow: 1.2mm 1.1mm 0 0 #49c530;
+  }
+
+  .print-hero {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    padding: 3mm 6.2mm 2.4mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    background: #073f45;
+  }
+
+  .print-hero-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 52%;
+    z-index: 0;
+  }
+
+  .print-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(90deg, rgba(2,48,54,.93) 0%, rgba(2,48,54,.68) 43%, rgba(2,48,54,.08) 72%, rgba(2,48,54,.03) 100%);
+  }
+
+  .print-hero-copy {
+    position: relative;
+    z-index: 2;
+    width: 75%;
+    margin-bottom: 0;
+  }
+
+  .print-hero h1 {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 10.4mm;
+    line-height: .9;
+    letter-spacing: -.34mm;
+    font-weight: 1000;
+    text-transform: uppercase;
+    text-shadow: 0 .4mm .7mm rgba(0,0,0,.25);
+  }
+
+  .print-hero h1 .line-white { color: #fff; }
+  .print-hero h1 .line-green { color: #64f12e; }
+
+  .print-hero-subtitle {
+    margin: 1.25mm 0 0;
+    color: #fff;
+    font-size: 4mm;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .print-slogan {
+    position: absolute;
+    z-index: 2;
+    top: 5.5mm;
+    right: 5.5mm;
+    width: 35mm;
+    color: #fff;
+    font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 4.2mm;
+    line-height: 1.12;
+    text-align: center;
+    transform: rotate(-6deg);
+    text-shadow: 0 .35mm .8mm rgba(0,0,0,.42);
+  }
+
+  .print-legend {
+    position: absolute;
+    z-index: 3;
+    left: 6.2mm;
+    bottom: 2.1mm;
+    display: flex;
+    align-items: center;
+    gap: 5mm;
+    color: #fff;
+    font-size: 3.25mm;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .print-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 1.8mm;
+  }
+
+  .print-status-dot,
+  .print-legend-dot {
+    display: inline-block;
+    flex: 0 0 auto;
+    border-radius: 50%;
+  }
+
+  .print-legend-dot { width: 4.7mm; height: 4.7mm; }
+  .print-status-dot { width: 3mm; height: 3mm; }
+  .print-status-dot.green, .print-legend-dot.green { background: #60f133; }
+  .print-status-dot.yellow, .print-legend-dot.yellow { background: #ffe615; }
+  .print-status-dot.red, .print-legend-dot.red { background: #fb3345; }
+
+  .print-units-grid {
+    min-height: 0;
+    padding: 1.6mm 2.3mm 1.7mm;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 1.095fr .905fr;
+    gap: 1.7mm;
+  }
+
+  .print-unit-card {
+    --card-border: #5bef37;
+    min-width: 0;
+    min-height: 0;
+    padding: 2mm 2.1mm 1.9mm;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 1mm;
+    overflow: hidden;
+    background: linear-gradient(160deg, rgba(4,65,70,.98), rgba(2,47,52,.98));
+    border: 1.05mm solid var(--card-border);
+    border-radius: 2.2mm;
+    box-shadow: inset 0 0 0 .18mm rgba(255,255,255,.06);
+    break-inside: avoid;
+  }
+
+  .print-unit-card.critical { --card-border: #ff3347; }
+  .print-unit-card.attention { --card-border: #ffe21e; }
+  .print-unit-card.active { --card-border: #56e53c; }
+
+  .print-unit-header {
+    display: flex;
+    align-items: center;
+    gap: 2.2mm;
+    min-height: 11.2mm;
+    border-bottom: .22mm solid rgba(132,228,226,.7);
+  }
+
+  .print-unit-mark {
+    position: relative;
+    width: 10.5mm;
+    height: 9.6mm;
+    flex: 0 0 auto;
+  }
+
+  .print-unit-mark i {
+    position: absolute;
+    bottom: .7mm;
+    width: 2.1mm;
+    height: 8.8mm;
+    border-radius: 100% 0 100% 0;
+    background: #65ee2f;
+    transform-origin: bottom center;
+  }
+
+  .print-unit-mark i:nth-child(1) { left: 1.2mm; transform: rotate(-21deg); }
+  .print-unit-mark i:nth-child(2) { left: 4.2mm; height: 9.6mm; transform: rotate(3deg); }
+  .print-unit-mark i:nth-child(3) { left: 7.2mm; height: 7.7mm; transform: rotate(27deg); }
+
+  .print-unit-name {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .print-unit-name strong {
+    color: #fff;
+    font-size: 8.2mm;
+    line-height: .8;
+    font-weight: 1000;
+    letter-spacing: -.18mm;
+  }
+
+  .print-unit-name span {
+    margin-top: .8mm;
+    color: #fff;
+    font-size: 4.1mm;
+    line-height: 1;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .print-table-wrap {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: #fff;
+  }
+
+  .print-table th {
+    height: 4.4mm;
+    padding: .45mm 1mm;
+    color: #fff;
+    border-bottom: .24mm solid rgba(126,221,220,.7);
+    font-size: 3.35mm;
+    line-height: 1;
+    font-weight: 900;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .print-table td {
+    height: 4.15mm;
+    padding: .25mm 1mm;
+    color: #f7ffff;
+    border-bottom: .18mm solid rgba(90,166,168,.45);
+    font-size: 3.45mm;
+    line-height: 1;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+
+  .print-table th:nth-child(1), .print-table td:nth-child(1) { width: 29%; }
+  .print-table th:nth-child(2), .print-table td:nth-child(2) { width: 31%; }
+  .print-table th:nth-child(3), .print-table td:nth-child(3) { width: 40%; }
+
+  .print-front-cell,
+  .print-status-cell {
+    display: flex;
+    align-items: center;
+    gap: 2.8mm;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .print-status-cell { gap: 1.8mm; }
+  .print-status-cell.green { color: #67ef39; }
+  .print-status-cell.yellow { color: #fff; }
+  .print-status-cell.red { color: #ff6975; }
+
+  .print-unit-card.rows-dense .print-table th { height: 3.9mm; font-size: 3mm; }
+  .print-unit-card.rows-dense .print-table td { height: 3.55mm; font-size: 3.05mm; }
+  .print-unit-card.rows-very-dense .print-table th { height: 3.55mm; font-size: 2.8mm; }
+  .print-unit-card.rows-very-dense .print-table td { height: 3.15mm; font-size: 2.75mm; }
+
+  .print-empty-row td {
+    height: 16mm;
+    color: rgba(255,255,255,.65);
+    font-style: italic;
+    text-align: center;
+  }
+
+  .print-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25mm;
+  }
+
+  .print-metric {
+    min-width: 0;
+    min-height: 10.5mm;
+    padding: 1mm 1.15mm;
+    display: flex;
+    align-items: center;
+    gap: 1.4mm;
+    overflow: hidden;
+    border: .68mm solid #ff3347;
+    border-radius: 1.5mm;
+    background: rgba(2,48,54,.92);
+  }
+
+  .print-metric-icon {
+    width: 7.2mm;
+    height: 7.2mm;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    color: #fff;
+  }
+
+  .print-metric:nth-child(1) .print-metric-icon { color: #fb3346; }
+  .print-metric:nth-child(4) .print-metric-icon { color: #a2f127; }
+  .print-metric-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .print-metric-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+  }
+
+  .print-metric-copy small {
+    width: 100%;
+    overflow: hidden;
+    color: #fff;
+    font-size: 2.35mm;
+    line-height: 1;
+    font-weight: 700;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .print-metric-copy strong {
+    margin-top: .75mm;
+    color: #fff;
+    font-size: 4.05mm;
+    line-height: 1;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .print-unit-bottom {
+    min-height: 21mm;
+    display: grid;
+    grid-template-columns: 1.15fr .85fr;
+    gap: 1.6mm;
+  }
+
+  .print-notes {
+    min-width: 0;
+    overflow: hidden;
+    padding: .5mm .6mm 0;
+  }
+
+  .print-notes h3 {
+    margin: 0 0 .8mm;
+    color: #ffe718;
+    font-size: 3.6mm;
+    line-height: 1;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+
+  .print-notes p {
+    margin: 0 0 2.1mm;
+    max-height: 8.5mm;
+    overflow: hidden;
+    color: #fff;
+    font-size: 2.75mm;
+    line-height: 1.15;
+    font-weight: 600;
+    white-space: pre-line;
+  }
+
+  .print-notes p:last-child { margin-bottom: 0; }
+
+  .print-rain-box {
+    min-width: 0;
+    align-self: stretch;
+    overflow: hidden;
+    border: .28mm solid #36c9df;
+    border-radius: 1.7mm;
+    background: rgba(3,56,62,.65);
+  }
+
+  .print-rain-title {
+    height: 5.1mm;
+    padding: .7mm .9mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1mm;
+    color: #fff;
+    border-bottom: .2mm solid rgba(62,197,219,.55);
+    font-size: 2.7mm;
+    line-height: 1;
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .print-rain-title::before {
+    content: "☁";
+    color: #fff;
+    font-size: 4mm;
+  }
+
+  .print-rain-row {
+    min-height: 3.18mm;
+    padding: .28mm 1mm;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10mm 1.5mm 10mm;
+    align-items: center;
+    gap: .4mm;
+    color: #fff;
+    border-bottom: .16mm solid rgba(86,160,166,.42);
+    font-size: 2.65mm;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .print-rain-row span:not(:first-child) { text-align: right; }
+  .print-rain-row:last-child { border-bottom: 0; }
+  .print-rain-empty { padding: 4mm 1mm; color: rgba(255,255,255,.65); font-size: 2.5mm; text-align: center; }
+  .print-unit-card.rain-dense .print-rain-row { min-height: 2.75mm; font-size: 2.35mm; }
+
+  .print-footer {
+    position: relative;
+    min-height: 0;
+    padding: 2.4mm 6mm 4.6mm;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    background: linear-gradient(180deg, #073d42, #06383d);
+  }
+
+  .print-footer::before,
+  .print-footer::after {
+    content: "";
+    position: absolute;
+    left: -4mm;
+    right: -4mm;
+    bottom: 6mm;
+    height: 8mm;
+    border-top: .8mm solid #83ed38;
+    border-radius: 50% 50% 0 0;
+    transform: rotate(1.6deg);
+    opacity: .9;
+  }
+
+  .print-footer::after {
+    bottom: 3.5mm;
+    border-top-color: #1cc33a;
+    transform: rotate(-1deg);
+  }
+
+  .print-footer-highlights {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    align-items: start;
+  }
+
+  .print-footer-item {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 2.3mm;
+    padding: 0 3.2mm;
+    border-right: .25mm solid rgba(255,255,255,.8);
+  }
+
+  .print-footer-item:first-child { padding-left: 0; }
+  .print-footer-item:last-child { border-right: 0; padding-right: 0; }
+
+  .print-footer-icon {
+    width: 13.3mm;
+    height: 13.3mm;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    color: #64ed2e;
+    border: .55mm solid #d7f51d;
+    border-radius: 50%;
+    font-size: 6mm;
+    font-weight: 900;
+  }
+
+  .print-footer-copy {
+    color: #fff;
+    font-size: 3.25mm;
+    line-height: 1.05;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .print-footer-bottom {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 5mm;
+    color: #fff;
+  }
+
+  .print-footer-brand {
+    padding-bottom: .1mm;
+    font-size: 2.8mm;
+    letter-spacing: 1mm;
+    text-transform: uppercase;
+  }
+
+  .print-footer-signature {
+    margin-right: 1mm;
+    color: #fff;
+    font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 5.2mm;
+    line-height: 1;
+    transform: rotate(-5deg);
+    text-shadow: 0 .3mm .6mm rgba(0,0,0,.3);
+  }
+
+  /* Mantém o arquivo exportado o mais próximo possível da arte de referência. */
+  #print-report, #print-report * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+@page { size: 190mm 300mm; margin: 0; }
+
+@media print {
+  html, body {
+    width: 190mm;
+    min-width: 190mm;
+    height: 300mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #06383d !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .report-toolbar, .report-message { display: none !important; }
+  .report-stage { display: block; width: 190mm; height: 300mm; }
+  #print-report.print-report {
+    position: absolute;
+    inset: 0 auto auto 0;
+    box-shadow: none !important;
+  }
+
+  #print-report, #print-report * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body { padding-left: 0; padding-right: 0; }
+  .report-toolbar { justify-content: space-between; gap: 10px; }
+  .report-toolbar-copy span { display: none; }
+  .report-toolbar-actions { gap: 10px; }
+  .report-stage { justify-content: flex-start; overflow-x: auto; }
+}

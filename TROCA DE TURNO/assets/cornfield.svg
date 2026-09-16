@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 260" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0c5362"/>
+      <stop offset=".55" stop-color="#2d6f72"/>
+      <stop offset=".77" stop-color="#f58f32"/>
+      <stop offset="1" stop-color="#ffc45b"/>
+    </linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#326d18"/>
+      <stop offset="1" stop-color="#0e3915"/>
+    </linearGradient>
+    <radialGradient id="sun"><stop offset="0" stop-color="#fff6c4"/><stop offset=".35" stop-color="#ffd365"/><stop offset="1" stop-color="#ef8b31" stop-opacity="0"/></radialGradient>
+    <g id="corn">
+      <path d="M0 75 C-14 48,-13 22,-4 3 C2 25,6 49,0 75Z" fill="#407d1a"/>
+      <path d="M0 80 C15 60,19 33,17 14 C7 30,2 55,0 80Z" fill="#5a9620"/>
+      <path d="M0 84 C-25 71,-35 56,-41 37 C-20 44,-8 60,0 84Z" fill="#274f16"/>
+      <path d="M0 86 C27 74,38 58,44 39 C22 48,8 64,0 86Z" fill="#315f17"/>
+      <rect x="-2" y="65" width="4" height="35" fill="#335e18"/>
+    </g>
+  </defs>
+  <rect width="1200" height="260" fill="url(#sky)"/>
+  <ellipse cx="865" cy="102" rx="145" ry="118" fill="url(#sun)"/>
+  <path d="M0 93 Q300 115 590 96 T1200 105 V260 H0Z" fill="url(#field)"/>
+  <g opacity=".96" transform="translate(0 68)">
+    <use href="#corn" x="20" y="55" transform="scale(.95)"/><use href="#corn" x="70" y="48" transform="scale(1.08)"/>
+    <use href="#corn" x="126" y="60" transform="scale(.9)"/><use href="#corn" x="180" y="46" transform="scale(1.08)"/>
+    <use href="#corn" x="235" y="53"/><use href="#corn" x="290" y="44" transform="scale(1.15)"/>
+    <use href="#corn" x="353" y="59" transform="scale(.92)"/><use href="#corn" x="405" y="45" transform="scale(1.12)"/>
+    <use href="#corn" x="470" y="55"/><use href="#corn" x="525" y="43" transform="scale(1.15)"/>
+    <use href="#corn" x="588" y="58"/><use href="#corn" x="645" y="44" transform="scale(1.13)"/>
+    <use href="#corn" x="708" y="58"/><use href="#corn" x="765" y="43" transform="scale(1.18)"/>
+    <use href="#corn" x="835" y="54"/><use href="#corn" x="890" y="42" transform="scale(1.18)"/>
+    <use href="#corn" x="960" y="57"/><use href="#corn" x="1015" y="45" transform="scale(1.14)"/>
+    <use href="#corn" x="1080" y="55"/><use href="#corn" x="1142" y="44" transform="scale(1.17)"/>
+  </g>
+  <path d="M0 192 Q140 168 288 183 T580 187 T860 176 T1200 185 V260 H0Z" fill="#183b18" opacity=".62"/>
+</svg>
