@@ -4,7 +4,7 @@ import threading
 import time
 from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 from .config import BASE_DIR, MAX_BODY_BYTES, SESSION_COOKIE, SESSION_TTL_SECONDS
 from .database import (
@@ -27,8 +27,14 @@ from .database import (
 )
 
 STATIC_ROOTS = {"css", "js", "assets"}
+PUBLIC_STATIC_FILES = {
+    ("css", "auth.css"),
+    ("js", "login.js"),
+    ("assets", "cornfield.svg"),
+}
 LOGIN_WINDOW_SECONDS = 5 * 60
 LOGIN_MAX_FAILURES = 10
+LOGIN_TRACKED_KEYS_MAX = 5000
 _login_failures = {}
 _login_lock = threading.Lock()
 
@@ -37,15 +43,29 @@ def _client_key(environ, username=""):
     return (environ.get("REMOTE_ADDR", "unknown"), username.strip().casefold())
 
 
+def _prune_login_failures(now):
+    stale_keys = []
+    for key, stamps in _login_failures.items():
+        fresh = [stamp for stamp in stamps if now - stamp < LOGIN_WINDOW_SECONDS]
+        if fresh:
+            _login_failures[key] = fresh[-LOGIN_MAX_FAILURES:]
+        else:
+            stale_keys.append(key)
+    for key in stale_keys:
+        _login_failures.pop(key, None)
+
+    if len(_login_failures) > LOGIN_TRACKED_KEYS_MAX:
+        ordered = sorted(_login_failures, key=lambda key: _login_failures[key][-1])
+        for key in ordered[: len(_login_failures) - LOGIN_TRACKED_KEYS_MAX]:
+            _login_failures.pop(key, None)
+
+
 def _login_blocked(environ, username):
     key = _client_key(environ, username)
     now = time.time()
     with _login_lock:
-        attempts = [stamp for stamp in _login_failures.get(key, []) if now - stamp < LOGIN_WINDOW_SECONDS]
-        if attempts:
-            _login_failures[key] = attempts
-        else:
-            _login_failures.pop(key, None)
+        _prune_login_failures(now)
+        attempts = _login_failures.get(key, [])
         return len(attempts) >= LOGIN_MAX_FAILURES
 
 
@@ -53,7 +73,8 @@ def _record_login_failure(environ, username):
     key = _client_key(environ, username)
     now = time.time()
     with _login_lock:
-        attempts = [stamp for stamp in _login_failures.get(key, []) if now - stamp < LOGIN_WINDOW_SECONDS]
+        _prune_login_failures(now)
+        attempts = list(_login_failures.get(key, []))
         attempts.append(now)
         _login_failures[key] = attempts[-LOGIN_MAX_FAILURES:]
 
@@ -64,13 +85,26 @@ def _clear_login_failures(environ, username):
 
 
 def _same_origin_request(environ):
-    origin = environ.get("HTTP_ORIGIN")
-    if not origin:
-        return True
+    fetch_site = (environ.get("HTTP_SEC_FETCH_SITE") or "").lower()
+    if fetch_site == "cross-site":
+        return False
+
     host = environ.get("HTTP_HOST", "")
     if not host:
         return False
-    return origin in {f"http://{host}", f"https://{host}"}
+
+    origin = environ.get("HTTP_ORIGIN")
+    if origin:
+        return origin in {f"http://{host}", f"https://{host}"}
+
+    referer = environ.get("HTTP_REFERER")
+    if referer:
+        parsed = urlsplit(referer)
+        return parsed.netloc == host and parsed.scheme in {"http", "https"}
+
+    # Clientes locais não-navegador podem não enviar Origin/Referer.
+    # O cookie SameSite=Strict continua impedindo envio cross-site pelo navegador.
+    return True
 
 
 
@@ -93,10 +127,11 @@ def _is_admin(user):
 
 
 def _json_body(environ):
+    raw_length = environ.get("CONTENT_LENGTH") or "0"
     try:
-        length = int(environ.get("CONTENT_LENGTH") or 0)
-    except ValueError:
-        length = 0
+        length = int(raw_length)
+    except ValueError as exc:
+        raise ValueError("Tamanho de requisição inválido.") from exc
     if length < 0:
         raise ValueError("Tamanho de requisição inválido.")
     if length > MAX_BODY_BYTES:
@@ -106,6 +141,8 @@ def _json_body(environ):
         payload = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("JSON inválido.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("O corpo da requisição deve ser um objeto JSON.")
     return payload
 
 
@@ -116,6 +153,8 @@ def _respond(start_response, status, body=b"", headers=None):
     headers.append(("X-Frame-Options", "DENY"))
     headers.append(("Referrer-Policy", "no-referrer"))
     headers.append(("Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
+    headers.append(("Cross-Origin-Opener-Policy", "same-origin"))
+    headers.append(("Cross-Origin-Resource-Policy", "same-origin"))
     headers.append(("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"))
     start_response(f"{status.value} {status.phrase}", headers)
     return [body]
@@ -261,6 +300,8 @@ def application(environ, start_response):
     if path == "/api/units/sync" and method == "POST":
         if not user:
             return _json(start_response, HTTPStatus.UNAUTHORIZED, {"error": "Autenticação necessária."})
+        if not _is_admin(user):
+            return _json(start_response, HTTPStatus.FORBIDDEN, {"error": "A inicialização das unidades é exclusiva do Administrador."})
         try:
             payload = _json_body(environ)
             units = payload.get("units")
@@ -321,6 +362,9 @@ def application(environ, start_response):
 
     parts = [part for part in path.split("/") if part]
     if method == "GET" and parts and parts[0] in STATIC_ROOTS:
+        public_file = len(parts) == 2 and tuple(parts) in PUBLIC_STATIC_FILES
+        if not user and not public_file:
+            return _respond(start_response, HTTPStatus.NOT_FOUND, "Arquivo não encontrado.".encode("utf-8"))
         candidate = (BASE_DIR / Path(*parts)).resolve()
         root = (BASE_DIR / parts[0]).resolve()
         if root == candidate or root in candidate.parents:

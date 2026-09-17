@@ -1,5 +1,8 @@
 import json
+import math
+import re
 import sqlite3
+import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -24,19 +27,161 @@ class UnitConflictError(Exception):
 
 
 ALLOWED_UNIT_CODES = ("PPT", "NRD", "RBR", "PST")
+UNIT_DEFINITIONS = {
+    "PPT": {"name": "PARAGUAÇU PAULISTA", "position": 0},
+    "NRD": {"name": "NARANDIBA", "position": 1},
+    "RBR": {"name": "RIO BRILHANTE", "position": 2},
+    "PST": {"name": "PASSA TEMPO", "position": 3},
+}
+METRIC_DEFINITIONS = (
+    ("🏭", "INDÚSTRIA", "TN/H", ""),
+    ("⚙️", "MOAGEM TURNO", "TN/H", ""),
+    ("🚚", "ENTREGA TURNO", "TN/H", ""),
+    ("⬡", "ESTOQUE", "CARGAS", "stock"),
+    ("⚙️", "MOAGEM ÚLTIMAS 3H", "TN/H", ""),
+    ("🚚", "ENTREGA ÚLTIMAS 3H", "TN/H", ""),
+)
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
 ALLOWED_ROLES = {ROLE_ADMIN, ROLE_USER}
+_BACKUP_LOCK = threading.Lock()
+_NUMBER_RE = re.compile(r"-?\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?")
+_DUMMY_PASSWORD_HASH = hash_password("__invalid_user_timing_guard__")
 
 
-def _validate_unit(unit: dict[str, Any], position: int) -> tuple[str, str]:
-    code = str(unit.get("code", "")).strip().upper()
-    name = str(unit.get("name", "")).strip()
-    if code not in ALLOWED_UNIT_CODES or not name:
+def _normalize_status(value: Any) -> str:
+    status = str(value or "").strip().upper()
+    if "SOLO ÚMIDO" in status:
+        return "SOLO ÚMIDO"
+    if status == "EM ATIVIDADE":
+        return "EM ATIVIDADE"
+    return "MUDANÇA"
+
+
+def _nonnegative_number(value: Any, field: str) -> int | float:
+    if isinstance(value, bool):
+        raise ValueError(f"{field} inválido.")
+    if isinstance(value, (int, float)):
+        number = float(value)
+    else:
+        match = _NUMBER_RE.search(str(value or "").replace(",", "."))
+        number = float(match.group(0)) if match else 0.0
+    if not math.isfinite(number) or number < 0:
+        raise ValueError(f"{field} deve ser um número maior ou igual a zero.")
+    return int(number) if number.is_integer() else number
+
+
+def _metric_value_text(value: Any, unit: str) -> str:
+    number = _nonnegative_number(value, "Valor do indicador")
+    if isinstance(number, int):
+        text = str(number)
+    else:
+        text = f"{number:.6f}".rstrip("0").rstrip(".")
+    return f"{text} {unit}"
+
+
+def _normalize_unit_payload(unit: dict[str, Any], position: int) -> dict[str, Any]:
+    if not isinstance(unit, dict):
         raise ValueError("Unidade inválida.")
-    if position < 0 or position >= len(ALLOWED_UNIT_CODES):
+
+    code = str(unit.get("code", "")).strip().upper()
+    definition = UNIT_DEFINITIONS.get(code)
+    if not definition:
+        raise ValueError("Unidade inválida.")
+    if position != definition["position"]:
         raise ValueError("Posição da unidade inválida.")
-    return code, name
+
+    incoming_name = str(unit.get("name", "")).strip()
+    if incoming_name and incoming_name.casefold() != definition["name"].casefold():
+        raise ValueError("Nome da unidade inválido.")
+
+    raw_rows = unit.get("rows", [])
+    if not isinstance(raw_rows, list) or len(raw_rows) > 100:
+        raise ValueError("Lista de frentes inválida.")
+    rows: list[list[Any]] = []
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, (list, tuple)) or len(raw_row) < 4:
+            raise ValueError("Dados de frente inválidos.")
+        front = str(raw_row[0] or "").strip()
+        sector = str(raw_row[1] or "").strip()
+        if len(front) > 12 or len(sector) > 16:
+            raise ValueError("Frente ou setor excede o tamanho permitido.")
+        if not front and not sector:
+            continue
+        status = _normalize_status(raw_row[3])
+        color = "green" if status == "EM ATIVIDADE" else "yellow"
+        rows.append([front, sector, color, status])
+
+    statuses = [row[3] for row in rows]
+    if not statuses or all(status == "EM ATIVIDADE" for status in statuses):
+        border = "active"
+    elif all(status == "SOLO ÚMIDO" for status in statuses):
+        border = "critical"
+    else:
+        border = "attention"
+
+    raw_metrics = unit.get("metrics", [])
+    metrics: list[list[str]] = []
+    for index, (icon, label, metric_unit, extra) in enumerate(METRIC_DEFINITIONS):
+        source = raw_metrics[index] if isinstance(raw_metrics, list) and index < len(raw_metrics) else []
+        raw_value = source[2] if isinstance(source, (list, tuple)) and len(source) >= 3 else 0
+        metrics.append([icon, label, _metric_value_text(raw_value, metric_unit), extra])
+
+    observation = str(unit.get("observation", "-")).strip() or "-"
+    changes = str(unit.get("changes", "-")).strip() or "-"
+    if len(observation) > 10_000 or len(changes) > 10_000:
+        raise ValueError("Apontamentos excedem o tamanho permitido.")
+
+    raw_rain = unit.get("rain", [])
+    if not isinstance(raw_rain, list) or len(raw_rain) > 100:
+        raise ValueError("Dados de precipitação inválidos.")
+    rain: list[list[Any]] = []
+    for raw_row in raw_rain:
+        if not isinstance(raw_row, (list, tuple)) or len(raw_row) < 3:
+            raise ValueError("Linha de precipitação inválida.")
+        equipment = str(raw_row[0] or "").strip()
+        if len(equipment) > 20:
+            raise ValueError("Identificação do equipamento excede o tamanho permitido.")
+        if not equipment:
+            continue
+        rain.append([
+            equipment,
+            _nonnegative_number(raw_row[1], "Chuva do turno"),
+            _nonnegative_number(raw_row[2], "Chuva acumulada"),
+        ])
+
+    return {
+        "code": code,
+        "name": definition["name"],
+        "border": border,
+        "rows": rows,
+        "metrics": metrics,
+        "observation": observation,
+        "changes": changes,
+        "rain": rain,
+    }
+
+
+def _repair_unit_identities(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("SELECT id, code, data_json FROM units").fetchall()
+    for row in rows:
+        code = str(row["code"] or "").strip().upper()
+        definition = UNIT_DEFINITIONS.get(code)
+        if not definition:
+            continue
+        payload = row["data_json"]
+        try:
+            decoded = json.loads(payload)
+            if isinstance(decoded, dict):
+                decoded["code"] = code
+                decoded["name"] = definition["name"]
+                payload = json.dumps(decoded, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
+        conn.execute(
+            "UPDATE units SET name = ?, position = ?, data_json = ? WHERE id = ?",
+            (definition["name"], definition["position"], payload, row["id"]),
+        )
 
 
 @contextmanager
@@ -122,32 +267,43 @@ def init_db() -> None:
             conn.execute("ALTER TABLE units ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
         conn.execute("UPDATE users SET role = 'user' WHERE role IS NULL OR role NOT IN ('admin', 'user')")
         conn.execute("UPDATE users SET is_active = 1 WHERE is_active IS NULL")
+        _repair_unit_identities(conn)
         conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (int(time.time()),))
 
 
 def create_backup(force: bool = False) -> Path | None:
-    if not DB_PATH.exists():
-        return None
+    with _BACKUP_LOCK:
+        if not DB_PATH.exists():
+            return None
 
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    now = datetime.now()
-    day_prefix = f"posicao_campo-{now:%Y-%m-%d}"
-    existing = sorted(BACKUP_DIR.glob(f"{day_prefix}*.db"))
-    if existing and not force:
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        now = datetime.now()
+        day_prefix = f"posicao_campo-{now:%Y-%m-%d}"
+        existing = sorted(BACKUP_DIR.glob(f"{day_prefix}*.db"))
+        if existing and not force:
+            _cleanup_old_backups(now)
+            return existing[-1]
+
+        if force:
+            base_name = f"{day_prefix}-{now:%H%M%S}"
+            destination = BACKUP_DIR / f"{base_name}.db"
+            counter = 1
+            while destination.exists():
+                destination = BACKUP_DIR / f"{base_name}-{counter}.db"
+                counter += 1
+        else:
+            destination = BACKUP_DIR / f"{day_prefix}.db"
+
+        source = sqlite3.connect(DB_PATH, timeout=max(DB_BUSY_TIMEOUT_MS / 1000, 1))
+        target = sqlite3.connect(destination)
+        try:
+            source.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}")
+            source.backup(target)
+        finally:
+            target.close()
+            source.close()
         _cleanup_old_backups(now)
-        return existing[-1]
-
-    suffix = f"-{now:%H%M%S}" if force or existing else ""
-    destination = BACKUP_DIR / f"{day_prefix}{suffix}.db"
-    source = sqlite3.connect(DB_PATH, timeout=max(DB_BUSY_TIMEOUT_MS / 1000, 1))
-    target = sqlite3.connect(destination)
-    try:
-        source.backup(target)
-    finally:
-        target.close()
-        source.close()
-    _cleanup_old_backups(now)
-    return destination
+        return destination
 
 
 def _cleanup_old_backups(now: datetime | None = None) -> None:
@@ -306,12 +462,23 @@ def reset_user_password(user_id: int, password: str, current_user_id: int) -> No
 
 
 def authenticate_user(name: str, password: str) -> dict[str, Any] | None:
+    cleaned_name = str(name or "").strip()
+    password = str(password or "")
+    if not cleaned_name or len(cleaned_name) > 80 or len(password) > 256:
+        return None
+
     with connection() as conn:
         row = conn.execute(
             "SELECT id, name, password_hash, role, is_active, created_at FROM users WHERE name = ? COLLATE NOCASE",
-            (name.strip(),),
+            (cleaned_name,),
         ).fetchone()
-    if not row or not bool(row["is_active"]) or not verify_password(password, row["password_hash"]):
+
+    if not row:
+        verify_password(password, _DUMMY_PASSWORD_HASH)
+        return None
+
+    password_ok = verify_password(password, row["password_hash"])
+    if not bool(row["is_active"]) or not password_ok:
         return None
     return _user_payload(row)
 
@@ -320,6 +487,7 @@ def create_session(user_id: int) -> str:
     token = new_session_token()
     now = int(time.time())
     with connection() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
         conn.execute(
             "INSERT INTO sessions (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
             (user_id, token_digest(token), now + SESSION_TTL_SECONDS, now),
@@ -354,7 +522,8 @@ def delete_session(token: str | None) -> None:
 
 def _decode_unit(row: sqlite3.Row) -> dict[str, Any] | None:
     try:
-        return json.loads(row["data_json"])
+        decoded = json.loads(row["data_json"])
+        return decoded if isinstance(decoded, dict) else None
     except (json.JSONDecodeError, TypeError):
         return None
 
@@ -363,10 +532,11 @@ def list_units_payload() -> dict[str, Any]:
     with connection() as conn:
         rows = conn.execute(
             """
-            SELECT u.data_json, u.version, u.updated_at, u.updated_by, users.name AS updated_by_name
+            SELECT u.code, u.name, u.data_json, u.version, u.updated_at, u.updated_by, users.name AS updated_by_name
             FROM units u
             LEFT JOIN users ON users.id = u.updated_by
-            ORDER BY u.position ASC, u.id ASC
+            WHERE u.code IN ('PPT', 'NRD', 'RBR', 'PST')
+            ORDER BY CASE u.code WHEN 'PPT' THEN 0 WHEN 'NRD' THEN 1 WHEN 'RBR' THEN 2 WHEN 'PST' THEN 3 ELSE 99 END, u.id ASC
             """
         ).fetchall()
 
@@ -376,7 +546,11 @@ def list_units_payload() -> dict[str, Any]:
         unit = _decode_unit(row)
         if not unit:
             continue
-        code = str(unit.get("code", "")).strip().upper()
+        code = str(row["code"] or unit.get("code", "")).strip().upper()
+        definition = UNIT_DEFINITIONS.get(code)
+        if definition:
+            unit["code"] = code
+            unit["name"] = definition["name"]
         units.append(unit)
         if code:
             meta[code] = {
@@ -414,17 +588,26 @@ def _history_insert(
 
 
 def initialize_units(units: list[dict[str, Any]], user_id: int) -> dict[str, Any]:
+    if not isinstance(units, list) or len(units) != len(ALLOWED_UNIT_CODES):
+        raise ValueError("A inicialização exige as quatro unidades.")
+
+    normalized_units = [_normalize_unit_payload(unit, position) for position, unit in enumerate(units)]
+    if tuple(unit["code"] for unit in normalized_units) != ALLOWED_UNIT_CODES:
+        raise ValueError("Ordem das unidades inválida.")
+
     now = int(time.time())
     with connection() as conn:
-        existing = conn.execute("SELECT COUNT(*) AS total FROM units").fetchone()["total"]
-        if existing:
-            return list_units_payload()
+        conn.execute("BEGIN IMMEDIATE")
+        existing_codes = {
+            str(row["code"]).upper()
+            for row in conn.execute("SELECT code FROM units WHERE code IN ('PPT', 'NRD', 'RBR', 'PST')").fetchall()
+        }
 
-        for position, unit in enumerate(units):
-            try:
-                code, name = _validate_unit(unit, position)
-            except ValueError:
+        for position, unit in enumerate(normalized_units):
+            code = unit["code"]
+            if code in existing_codes:
                 continue
+            name = unit["name"]
             payload = json.dumps(unit, ensure_ascii=False)
             conn.execute(
                 """
@@ -444,6 +627,7 @@ def initialize_units(units: list[dict[str, Any]], user_id: int) -> dict[str, Any
                 version=1,
                 created_at=now,
             )
+
     return list_units_payload()
 
 
@@ -453,10 +637,12 @@ def save_unit(
     user_id: int,
     expected_version: int | None = None,
 ) -> dict[str, Any]:
-    code, name = _validate_unit(unit, position)
+    normalized_unit = _normalize_unit_payload(unit, position)
+    code = normalized_unit["code"]
+    name = normalized_unit["name"]
 
     now = int(time.time())
-    payload = json.dumps(unit, ensure_ascii=False)
+    payload = json.dumps(normalized_unit, ensure_ascii=False)
     with connection() as conn:
         # Serializa as gravações antes da leitura da versão para impedir
         # que duas edições concorrentes validem a mesma versão ao mesmo tempo.
@@ -474,7 +660,7 @@ def save_unit(
         if row:
             current_version = int(row["version"] or 1)
             if expected_version is not None and expected_version != current_version:
-                current_unit = _decode_unit(row) or unit
+                current_unit = _decode_unit(row) or normalized_unit
                 raise UnitConflictError(
                     {
                         "unit": current_unit,
@@ -524,7 +710,7 @@ def save_unit(
         updated_by = user_name["name"] if user_name else "-"
 
     return {
-        "unit": unit,
+        "unit": normalized_unit,
         "meta": {"version": new_version, "updated_at": now, "updated_by": updated_by},
     }
 

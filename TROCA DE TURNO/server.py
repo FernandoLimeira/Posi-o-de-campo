@@ -1,9 +1,11 @@
 import argparse
 from socketserver import ThreadingMixIn
-from wsgiref.simple_server import WSGIServer, make_server
+from wsgiref.simple_server import ServerHandler, WSGIServer, make_server
 
 from backend.app import application
 from backend.database import has_admin
+
+ServerHandler.server_software = "PosicaoCampo"
 
 
 class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
@@ -32,7 +34,12 @@ def main():
     print("Pressione Ctrl+C para encerrar.")
     print()
 
-    with make_server(args.host, args.port, application, server_class=ThreadingWSGIServer) as server:
+    with make_server(
+        args.host,
+        args.port,
+        application,
+        server_class=ThreadingWSGIServer,
+    ) as server:
         try:
             server.serve_forever()
         except KeyboardInterrupt:
