@@ -998,10 +998,26 @@ function drawLeafMark(ctx, x, y, scale = 1) {
   ctx.restore();
 }
 
-function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines, color = '#ffffff') {
+function wrapTextLines(ctx, text, maxWidth) {
   const content = String(text || '-').replace(/\r/g, '');
   const paragraphs = content.split('\n');
   const lines = [];
+
+  const splitLongWord = word => {
+    const parts = [];
+    let current = '';
+    Array.from(word).forEach(char => {
+      const trial = `${current}${char}`;
+      if (current && ctx.measureText(trial).width > maxWidth) {
+        parts.push(current);
+        current = char;
+      } else {
+        current = trial;
+      }
+    });
+    if (current) parts.push(current);
+    return parts.length ? parts : [''];
+  };
 
   paragraphs.forEach(paragraph => {
     const words = paragraph.split(/\s+/).filter(Boolean);
@@ -1012,29 +1028,95 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines, color 
 
     let current = '';
     words.forEach(word => {
-      const trial = current ? `${current} ${word}` : word;
-      if (ctx.measureText(trial).width <= maxWidth || !current) {
-        current = trial;
-      } else {
-        lines.push(current);
-        current = word;
-      }
+      const pieces = ctx.measureText(word).width > maxWidth ? splitLongWord(word) : [word];
+      pieces.forEach((piece, pieceIndex) => {
+        const trial = current ? `${current} ${piece}` : piece;
+        if (ctx.measureText(trial).width <= maxWidth || !current) {
+          current = trial;
+        } else {
+          lines.push(current);
+          current = piece;
+        }
+
+        if (pieces.length > 1 && pieceIndex < pieces.length - 1) {
+          lines.push(current);
+          current = '';
+        }
+      });
     });
     if (current) lines.push(current);
   });
 
-  const output = lines.slice(0, maxLines);
-  if (lines.length > maxLines && output.length) {
-    let last = output[output.length - 1];
-    while (ctx.measureText(`${last}…`).width > maxWidth && last.length > 1) last = last.slice(0, -1);
-    output[output.length - 1] = `${last}…`;
+  return lines.length ? lines : ['-'];
+}
+
+function getWrappedTextLineCount(ctx, text, maxWidth, fontSize) {
+  ctx.save();
+  ctx.font = `${fontSize}px "Arial Narrow", Arial, sans-serif`;
+  const count = wrapTextLines(ctx, text, maxWidth).length;
+  ctx.restore();
+  return Math.max(1, count);
+}
+
+function drawWrappedTextFit(ctx, text, x, y, maxWidth, maxHeight, options = {}) {
+  const maxFontSize = Number(options.maxFontSize) || 13;
+  const minFontSize = Number(options.minFontSize) || 4;
+  const color = options.color || '#ffffff';
+  const family = options.family || '"Arial Narrow", Arial, sans-serif';
+  const lineRatio = Number(options.lineRatio) || 1.22;
+  const availableHeight = Math.max(1, maxHeight);
+
+  let fitted = null;
+  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 0.5) {
+    ctx.save();
+    ctx.font = `${fontSize}px ${family}`;
+    const lines = wrapTextLines(ctx, text, maxWidth);
+    ctx.restore();
+    const lineHeight = fontSize * lineRatio;
+    if (lines.length * lineHeight <= availableHeight) {
+      fitted = { fontSize, lineHeight, lines };
+      break;
+    }
+  }
+
+  if (!fitted) {
+    let fontSize = minFontSize;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      ctx.save();
+      ctx.font = `${fontSize}px ${family}`;
+      const lines = wrapTextLines(ctx, text, maxWidth);
+      ctx.restore();
+      const requiredHeight = Math.max(1, lines.length * fontSize * lineRatio);
+      if (requiredHeight <= availableHeight) {
+        fitted = { fontSize, lineHeight: fontSize * lineRatio, lines };
+        break;
+      }
+      fontSize = Math.max(2.5, fontSize * (availableHeight / requiredHeight) * 0.98);
+    }
+
+    if (!fitted) {
+      ctx.save();
+      ctx.font = `${fontSize}px ${family}`;
+      const lines = wrapTextLines(ctx, text, maxWidth);
+      ctx.restore();
+      fitted = {
+        fontSize,
+        lineHeight: Math.min(fontSize * lineRatio, availableHeight / Math.max(1, lines.length)),
+        lines
+      };
+    }
   }
 
   ctx.save();
+  ctx.font = `${fitted.fontSize}px ${family}`;
   ctx.fillStyle = color;
   ctx.textBaseline = 'top';
-  output.forEach((line, index) => ctx.fillText(line || ' ', x, y + index * lineHeight));
+  fitted.lines.forEach((line, index) => {
+    ctx.fillText(line || ' ', x, y + index * fitted.lineHeight);
+  });
   ctx.restore();
+
+  return fitted.lines.length * fitted.lineHeight;
 }
 
 function drawMetricIcon(ctx, type, x, y, size, color) {
@@ -1264,25 +1346,59 @@ function drawUnitOnCanvas(ctx, unit, layout) {
     );
   });
 
-  const observationLines = layout.lower ? 3 : 2;
-  const changeLines = layout.lower ? 1 : 2;
-  const lineHeight = layout.lower ? 16 : 18;
-  const changesY = layout.lower ? geometry.notesY + 74 : geometry.notesY + 90;
+  const titleFontSize = layout.lower ? 16 : 18;
+  const titleToBodyGap = layout.lower ? 21 : 24;
+  const sectionGap = layout.lower ? 6 : 8;
+  const maxBodyFont = layout.lower ? 11.5 : 13;
+  const notesBottom = geometry.cardBottom - 10;
+  const totalNotesHeight = Math.max(52, notesBottom - geometry.notesY);
+  const bodyHeightTotal = Math.max(20, totalNotesHeight - titleToBodyGap * 2 - sectionGap);
+
+  const observationText = unit.observation || '-';
+  const changesText = unit.changes || '-';
+  const observationWeight = getWrappedTextLineCount(ctx, observationText, geometry.notesW, maxBodyFont);
+  const changesWeight = getWrappedTextLineCount(ctx, changesText, geometry.notesW, maxBodyFont);
+  const combinedWeight = Math.max(2, observationWeight + changesWeight);
+  const minBodyHeight = Math.min(18, bodyHeightTotal / 2);
+
+  let observationBodyHeight = Math.max(minBodyHeight, bodyHeightTotal * (observationWeight / combinedWeight));
+  let changesBodyHeight = bodyHeightTotal - observationBodyHeight;
+  if (changesBodyHeight < minBodyHeight) {
+    changesBodyHeight = minBodyHeight;
+    observationBodyHeight = Math.max(minBodyHeight, bodyHeightTotal - changesBodyHeight);
+  }
+
+  const observationBodyY = geometry.notesY + titleToBodyGap;
+  const changesTitleY = observationBodyY + observationBodyHeight + sectionGap;
+  const changesBodyY = changesTitleY + titleToBodyGap;
 
   ctx.save();
   ctx.fillStyle = '#ffe11a';
-  ctx.font = 'bold 18px "Arial Narrow", Arial, sans-serif';
+  ctx.font = `bold ${titleFontSize}px "Arial Narrow", Arial, sans-serif`;
   ctx.textBaseline = 'top';
   ctx.fillText('OBSERVAÇÃO', geometry.notesX, geometry.notesY);
-  ctx.font = layout.lower ? '11.5px "Arial Narrow", Arial, sans-serif' : '13px "Arial Narrow", Arial, sans-serif';
-  drawWrappedText(ctx, unit.observation || '-', geometry.notesX, geometry.notesY + 25, geometry.notesW, lineHeight, observationLines, '#ffffff');
-
-  ctx.fillStyle = '#ffe11a';
-  ctx.font = 'bold 18px "Arial Narrow", Arial, sans-serif';
-  ctx.fillText('MUDANÇAS', geometry.notesX, changesY);
-  ctx.font = layout.lower ? '11.5px "Arial Narrow", Arial, sans-serif' : '13px "Arial Narrow", Arial, sans-serif';
-  drawWrappedText(ctx, unit.changes || '-', geometry.notesX, changesY + 23, geometry.notesW, lineHeight, changeLines, '#ffffff');
+  ctx.fillText('MUDANÇAS', geometry.notesX, changesTitleY);
   ctx.restore();
+
+  drawWrappedTextFit(
+    ctx,
+    observationText,
+    geometry.notesX,
+    observationBodyY,
+    geometry.notesW,
+    observationBodyHeight,
+    { maxFontSize: maxBodyFont, minFontSize: 4, color: '#ffffff' }
+  );
+
+  drawWrappedTextFit(
+    ctx,
+    changesText,
+    geometry.notesX,
+    changesBodyY,
+    geometry.notesW,
+    changesBodyHeight,
+    { maxFontSize: maxBodyFont, minFontSize: 4, color: '#ffffff' }
+  );
 
   drawRainBox(ctx, unit, layout, geometry);
 }
